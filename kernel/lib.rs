@@ -84,29 +84,29 @@ unsafe fn draw_string(
 // 使用 no_mangle 标记这个函数，来对它禁用名称重整
 #[unsafe(no_mangle)]
 /// `kmain` 程序的入口点，extern "C" 表示这个函数使用C语言的ABI，，使其可以被引导加载程序调用
-/// 在屏幕上显示 hello world
 unsafe extern "C" fn kmain() -> ! {
     assert!(BASE_REVISION.is_supported());
 
     // 获取帧缓冲区信息
-    if let Some(framebuffer_response) = FRAMEBUFFER_REQUEST.get_response() {
-        if let Some(framebuffer) = framebuffer_response.framebuffers().next() {
-            // 获取font
-            if let Some(modules) = MOUDULE_REQUEST.get_response() {
-                for amodule in modules.modules() {
-                    if amodule.string() == c"zap-light16.psf" {
-                        unsafe {
-                            draw_string(
-                                amodule,
-                                &framebuffer,
-                                c"Hello World",
-                                0,
-                                // 青色
-                                0xFF00FFFF,
-                            )
-                        };
-                    }
-                }
+    let framebuffer_response = FRAMEBUFFER_REQUEST.get_response().unwrap();
+    let mut framebuffers = framebuffer_response.framebuffers();
+    let framebuffer = framebuffers.next().unwrap();
+
+    // 获取模块信息
+    let module_response = MOUDULE_REQUEST.get_response().unwrap();
+    let modules = module_response.modules();
+
+    // 在屏幕上显示 hello world
+    for module in modules {
+        if module.string() == c"zap-light16.psf" {
+            unsafe {
+                draw_string(
+                    module,
+                    &framebuffer,
+                    c"Hello World",
+                    0,
+                    0xFF00FFFF,
+                );
             }
         }
     }
