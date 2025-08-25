@@ -1,12 +1,11 @@
 [package]
-name = "MoonOS"
+name = "MoonKernel"
 version = "0.1.0"
 edition = "2024"
 
-[lib]
+[[bin]]
 name = "kernel"
-path = "kernel/lib.rs"
-crate-type = ["staticlib"]
+path = "kernel/main.rs"
 
 [dependencies]
 limine = "0.5.0"

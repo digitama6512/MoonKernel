@@ -1,26 +1,33 @@
+UNAME_S := $(shell uname -s)
+ifeq ($(findstring MINGW,$(UNAME_S)),MINGW)
+	LIMINE := ./limine/limine.exe
+else
+	LIMINE := ./limine/limine
+endif
+
 ARCH ?= x86_64
 BUILD_TYPE ?= debug
-IMAGE := build/MoonOS-$(ARCH).iso
+IMAGE := build/MoonKernel-$(ARCH).iso
 RUST_TARGET := $(ARCH)-unknown-none
 LINKER := arch/$(ARCH)/linker.ld
 KERNEL := build/kernel-$(ARCH).bin
 
 ifeq ($(BUILD_TYPE),release)
-CARGO_FLAGS = --release
-rust_os = target/$(ARCH)-unknown-none/release/libkernel.a
+	CARGO_FLAGS = --release
+	KERNEL_BIN = target/$(ARCH)-unknown-none/release/kernel
 else
-CARGO_FLAGS =
-rust_os = target/$(ARCH)-unknown-none/debug/libkernel.a
+	CARGO_FLAGS =
+	KERNEL_BIN = target/$(ARCH)-unknown-none/debug/kernel
 endif
 
-.PHONY: cargo kernel iso run all clean
+.PHONY: cargo kernel iso all clean cleanall
 
 cargo:
-	cargo build $(CARGO_FLAGS) --target $(RUST_TARGET)
+	RUSTFLAGS="-C relocation-model=static" cargo build $(CARGO_FLAGS) --target $(RUST_TARGET)
 
 kernel: cargo $(rust_os) $(LINKER)
 	mkdir -p build
-	ld.lld -T $(LINKER) -o $(KERNEL) $(rust_os)
+	cp $(KERNEL_BIN) $(KERNEL)
 
 iso: kernel
 	mkdir -p build/iso_root/boot/limine
@@ -35,13 +42,12 @@ iso: kernel
 		--efi-boot boot/limine/limine-uefi-cd.bin \
 		-efi-boot-part --efi-boot-image --protective-msdos-label \
 		build/iso_root -o $(IMAGE)
-	./limine/limine bios-install $(IMAGE)
-	rm -rf iso_root
-
-run: $(IMAGE)
-	qemu-system-$(ARCH) -cdrom $(IMAGE)
+	$(LIMINE) bios-install $(IMAGE)
 
 all: iso
 
 clean:
 	rm -rf build
+
+cleanall: clean
+	cargo clean
