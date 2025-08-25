@@ -1,6 +1,6 @@
 ARCH ?= x86_64
 BUILD_TYPE ?= debug
-IMAGE_NAME := MoonOS-$(ARCH)
+IMAGE := build/MoonOS-$(ARCH).iso
 RUST_TARGET := $(ARCH)-unknown-none
 LINKER := arch/$(ARCH)/linker.ld
 KERNEL := build/kernel-$(ARCH).bin
@@ -22,9 +22,7 @@ kernel: cargo $(rust_os) $(LINKER)
 	mkdir -p build
 	ld.lld -T $(LINKER) -o $(KERNEL) $(rust_os)
 
-iso: kernel $(IMAGE_NAME).iso 
-
-$(IMAGE_NAME).iso:
+iso: kernel
 	mkdir -p build/iso_root/boot/limine
 	cp $(KERNEL) build/iso_root/boot/
 	cp limine/zap-light16.psf build/iso_root/boot/
@@ -36,14 +34,12 @@ $(IMAGE_NAME).iso:
 		-no-emul-boot -boot-load-size 4 -boot-info-table \
 		--efi-boot boot/limine/limine-uefi-cd.bin \
 		-efi-boot-part --efi-boot-image --protective-msdos-label \
-		build/iso_root -o build/$(IMAGE_NAME).iso
-	./limine/limine bios-install build/$(IMAGE_NAME).iso
+		build/iso_root -o $(IMAGE)
+	./limine/limine bios-install $(IMAGE)
 	rm -rf iso_root
 
-run: $(IMAGE_NAME).iso
-	qemu-system-$(ARCH) \
-		-bios /usr/share/ovmf/OVMF.fd\
-		-cdrom build/$(IMAGE_NAME).iso
+run: $(IMAGE)
+	qemu-system-$(ARCH) -cdrom $(IMAGE)
 
 all: iso
 
