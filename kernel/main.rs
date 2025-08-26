@@ -2,7 +2,9 @@
 #![no_std]
 // 不使用标准的主函数入口
 #![no_main]
+// 由于不适用标准库，只能自定义test框架
 #![feature(custom_test_frameworks)]
+// test_runner所在位置
 #![test_runner(crate::test::test_runner)]
 
 use core::arch::asm;
@@ -14,6 +16,7 @@ use limine::request::{
 };
 
 mod panic;
+mod print;
 mod test;
 
 // 强制编译器保留此变量（即使未被显式使用）
@@ -46,7 +49,7 @@ static _END_MARKER: RequestsEndMarker = RequestsEndMarker::new();
 /// - x: 打印字符串的起始x坐标
 /// - color: 打印字符串的颜色
 unsafe fn draw_string(
-    psf1module: &&limine::file::File,
+    psf1module: &limine::file::File,
     framebuffer: &Framebuffer<'_>,
     string: &CStr,
     x: usize,
@@ -95,19 +98,19 @@ unsafe extern "C" fn kmain() -> ! {
     // 获取模块信息
     let module_response = MOUDULE_REQUEST.get_response().unwrap();
     let modules = module_response.modules();
+    // 获取psf1
+    let psf1module = modules.get(0).unwrap();
 
     // 在屏幕上显示 hello world
     for module in modules {
-        if module.string() == c"zap-light16.psf" {
-            unsafe {
-                draw_string(
-                    module,
-                    &framebuffer,
-                    c"Hello World",
-                    0,
-                    0xFF00FFFF,
-                );
-            }
+        unsafe {
+            draw_string(
+                psf1module,
+                &framebuffer,
+                c"Hello World",
+                0,
+                0xFF00FFFF,
+            );
         }
     }
 
