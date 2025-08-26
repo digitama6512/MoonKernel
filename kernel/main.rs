@@ -8,12 +8,13 @@
 #![test_runner(crate::test::test_runner)]
 
 use core::arch::asm;
-use core::ffi::CStr;
 use limine::BaseRevision;
-use limine::framebuffer::Framebuffer;
+use limine::file::File;
 use limine::request::{
     FramebufferRequest, ModuleRequest, RequestsEndMarker, RequestsStartMarker,
 };
+
+use crate::print::{FramebufferConsole, RGBColor};
 
 mod panic;
 mod print;
@@ -28,7 +29,7 @@ static BASE_REVISION: BaseRevision = BaseRevision::new();
 
 #[used]
 #[unsafe(link_section = ".requests")]
-static MOUDULE_REQUEST: ModuleRequest = ModuleRequest::new();
+static MODULE_REQUEST: ModuleRequest = ModuleRequest::new();
 
 #[used]
 #[unsafe(link_section = ".requests")]
@@ -43,47 +44,6 @@ static _START_MARKER: RequestsStartMarker = RequestsStartMarker::new();
 #[unsafe(link_section = ".requests_end_marker")]
 static _END_MARKER: RequestsEndMarker = RequestsEndMarker::new();
 
-/// `draw_string` 使用limine帧缓冲打印字符串，横着打印
-/// - psf1module: 内核镜像中的psf1文件
-/// - framebuffer: limine帧缓冲
-/// - x: 打印字符串的起始x坐标
-/// - color: 打印字符串的颜色
-unsafe fn draw_string(
-    psf1module: &limine::file::File,
-    framebuffer: &Framebuffer<'_>,
-    string: &CStr,
-    x: usize,
-    color: u32,
-) {
-    // 跳过psf1文件头部信息
-    let glyphs_ptr = unsafe { psf1module.addr().add(4) };
-    // 每个字形是8x16位图
-    let row_size: usize = 16;
-    let col_size: usize = 8;
-    for (char_count, achar) in string.to_bytes().iter().enumerate() {
-        // 当前字符在psf1文件中的字形
-        let current_glyphs = unsafe { glyphs_ptr.add(16 * (*achar as usize)) };
-
-        for row in 0..row_size {
-            let row_of_glyphs = unsafe { *(current_glyphs.add(row)) };
-            for col in 0..col_size {
-                // 判断字形位图中第row行第col列是否为 #
-                if (row_of_glyphs >> (7 - col)) & 1 != 0 {
-                    let pixel_offset = (row + x) * framebuffer.pitch() as usize
-                        + (char_count * 8 + col) * 4;
-                    unsafe {
-                        framebuffer
-                            .addr()
-                            .add(pixel_offset)
-                            .cast::<u32>()
-                            .write(color)
-                    };
-                }
-            }
-        }
-    }
-}
-
 // 使用 no_mangle 标记这个函数，来对它禁用名称重整
 #[unsafe(no_mangle)]
 /// `kmain` 程序的入口点，extern "C" 表示这个函数使用C语言的ABI，，使其可以被引导加载程序调用
@@ -96,23 +56,18 @@ unsafe extern "C" fn kmain() -> ! {
     let framebuffer = framebuffers.next().unwrap();
 
     // 获取模块信息
-    let module_response = MOUDULE_REQUEST.get_response().unwrap();
+    let module_response = MODULE_REQUEST.get_response().unwrap();
     let modules = module_response.modules();
     // 获取psf1
-    let psf1module = modules.get(0).unwrap();
+    let psf1module: &File = modules.get(0).unwrap();
 
-    // 在屏幕上显示 hello world
-    for module in modules {
-        unsafe {
-            draw_string(
-                psf1module,
-                &framebuffer,
-                c"Hello World",
-                0,
-                0xFF00FFFF,
-            );
-        }
-    }
+    let mut frameconsole = FramebufferConsole::new(&framebuffer, psf1module);
+
+    frameconsole.println_error("test errror");
+    frameconsole.println_warning("test warning");
+    frameconsole.println_info("test info");
+
+    frameconsole.println_info("kernel hlt");
 
     hcf();
 }
