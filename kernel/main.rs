@@ -4,6 +4,7 @@
 #![test_runner(crate::test_runner)] // test_runner所在位置
 
 mod print;
+mod device;
 
 use core::arch::asm;
 use limine::BaseRevision;
