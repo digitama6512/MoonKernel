@@ -1,5 +1,8 @@
+/*! 内核打印模块 */
+
 use limine;
 
+/// `RGBColor` RGB颜色格式
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
@@ -19,6 +22,7 @@ impl From<RGBColor> for u32 {
 const PSF1FONT_WIDTH: u64 = 8;
 const PSF1FONT_HEIGHT: u64 = 16;
 
+/// `FramebufferConsole` 内核帧缓冲区打印
 pub struct FramebufferConsole {
     // 帧缓冲区
     framebuffer_saddr: *mut u8,
@@ -37,7 +41,12 @@ pub struct FramebufferConsole {
 }
 
 impl FramebufferConsole {
-    /// 初始化控制台
+    /// `new` 创建一个帧缓冲区打印器
+    ///
+    /// - `framebuffer`: limine帧缓冲区
+    /// - `psf1module`: psf1字体模块
+    ///
+    ///   `return`: 帧缓冲区打印器
     pub fn new(
         framebuffer: &limine::framebuffer::Framebuffer<'_>,
         psf1module: &limine::file::File,
@@ -54,6 +63,9 @@ impl FramebufferConsole {
         }
     }
 
+    /// `clear_font_row` 清除一行字体
+    ///
+    /// - `font_row`: 字体所在行
     fn clear_font_row(&mut self, font_row: u64) {
         // 帧缓存区待清除起始地址
         let framebuffer_caddr = unsafe {
@@ -78,6 +90,7 @@ impl FramebufferConsole {
         }
     }
 
+    /// `new_line` 帧缓冲区新起一行
     fn new_line(&mut self) {
         if self.current_height == self.height - 1 {
             // 到底，滚动一行字形高度
@@ -104,6 +117,10 @@ impl FramebufferConsole {
         }
     }
 
+    /// `write_byte` 帧缓冲区写入一个字符
+    ///
+    /// - `byte`: 要写入的字符
+    /// - `color`: 字符颜色
     fn write_byte(&mut self, byte: u8, color: u32) {
         match byte {
             b'\n' => self.new_line(),
@@ -155,6 +172,10 @@ impl FramebufferConsole {
         }
     }
 
+    /// `write_string` 帧缓冲区写入一个字符串
+    ///
+    /// - `s`: 字符串
+    /// - `color`: 字符串颜色
     fn write_string(&mut self, s: &str, color: u32) {
         for byte in s.bytes() {
             match byte {
@@ -166,6 +187,9 @@ impl FramebufferConsole {
         }
     }
 
+    /// `println_info` 打印内核信息
+    ///
+    /// - `s`: 信息字符串
     pub fn println_info(&mut self, s: &str) {
         let color = RGBColor::White.into();
         self.write_string("[info]: ", color);
@@ -173,6 +197,9 @@ impl FramebufferConsole {
         self.write_byte(b'\n', color);
     }
 
+    /// `printlb_warning` 打印内核警告
+    ///
+    /// - `s`: 警告字符串
     pub fn println_warning(&mut self, s: &str) {
         let color = RGBColor::Yellow.into();
         self.write_string("[warning]: ", color);
@@ -180,6 +207,9 @@ impl FramebufferConsole {
         self.write_byte(b'\n', color);
     }
 
+    /// `printlb_error` 打印内核错误
+    ///
+    /// - `s`: 错误字符串
     pub fn println_error(&mut self, s: &str) {
         let color = RGBColor::Red.into();
         self.write_string("[error]: ", color);
